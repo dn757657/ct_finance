@@ -1,8 +1,8 @@
 from distutils.core import setup
 
 setup(name='ct_finance',
-      version='0.0.1',
-      packages=['ct-finance'],
+      version='0.0.2',
+      packages=['ct_finance', 'data', 'db_structure', 'docopt_util'],
       license='MIT',
       description='console based finance manager',
       author='Dan',
@@ -16,7 +16,7 @@ setup(name='ct_finance',
             'python-dateutil~=2.8.2',
             'docopt~=0.6.2',
             'web3~=5.26.0',
-            'textblob~=0.17.1,'
+            'textblob~=0.17.1',
             'colorama~=0.4.4',
             'tabulate~=0.8.9',
       ],
