@@ -1,14 +1,14 @@
 from distutils.core import setup
 
 setup(name='ct_finance',
-      version='0.0.3',
-      packages=['ct_finance', 'data', 'db_structure', 'docopt_util'],
+      version='0.0.4',
+      packages=['ct_finance', 'ct_finance.data', 'ct_finance.db_structure', 'ct_finance.docopt_util'],
       license='MIT',
       description='console based finance manager',
       author='Dan',
       author_email='daniel.js.campbell@gmail.com',
       url='https://github.com/dn757657/ct-data.git',
-      download_url='https://github.com/dn757657/ct_finance/archive/refs/tags/0.0.3.tar.gz',
+      download_url='https://github.com/dn757657/ct_finance/archive/refs/tags/0.0.4.tar.gz',
       keywords=['docopt', 'sqlite', 'ct-finance'],
       install_requires=[
             'pandas~=1.3.5',
