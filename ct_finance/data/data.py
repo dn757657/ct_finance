@@ -1,5 +1,6 @@
 from pathlib import Path
 from web3 import Web3
+from sql_queries import Query
 
 import pandas as pd
 import os
@@ -7,14 +8,15 @@ import sqlite3
 import copy
 
 # internal
-from sql_queries import Query
+from .dir_utils import Dir
 
-fipy_fp = Path(__file__).absolute().parent
+# fipy_fp = Path(__file__).absolute().parent
 # replace this with user json
+
 
 class ctCreate():
     """ pass in query and add item to ct db structure as perscribed """
-    def __init__(self, query, db, drop_cond=None, drop_method=None, comp_columns=None, drop_id_col=None):
+    def __init__(self, query, db, accounts_fp=None, drop_cond=None, drop_method=None, comp_columns=None, drop_id_col=None):
         self.query = query
         self.db = db
         self.item_type = None
@@ -22,6 +24,7 @@ class ctCreate():
         self.drop_method = drop_method
         self.comp_cols = comp_columns
         self.drop_id_col = drop_id_col
+        self.accounts_fp = accounts_fp
 
     def create_item(self, item_type):
         if item_type == 'account':
@@ -50,7 +53,7 @@ class ctCreate():
         number = None
         for i in range(0, len(self.query.in_cols)):
             if self.query.in_cols[i] == 'num':
-                filepath = str(fipy_fp.joinpath('accounts').joinpath(self.query.in_vals[i]))
+                filepath = str(self.accounts_fp.joinpath('accounts').joinpath(self.query.in_vals[i]))
                 number = self.query.in_vals[i]
 
         for i in range(0, len(self.query.in_cols)):
@@ -65,8 +68,8 @@ class ctCreate():
 
         # create directory for saving transaction data to be imported if file is source
         if source == 'file':
-            os.makedirs(fipy_fp.joinpath('accounts'), exist_ok=True)
-            os.makedirs(fipy_fp.joinpath('accounts').joinpath(number), exist_ok=True)
+            os.makedirs(self.accounts_fp.joinpath('accounts'), exist_ok=True)
+            os.makedirs(self.accounts_fp.joinpath('accounts').joinpath(number), exist_ok=True)
 
     def create_holding(self,):
         # convert chain address to checksum before storage
@@ -81,6 +84,42 @@ class ctCreate():
 class dbUpdate():
     def __init__(self, db):
         self.db = db
+
+    def update_account_fps(self, destination):
+        """ update account filepaths in db and move exsiting files to new location denoted by destination
+
+        args:
+            destination     pathlib Path object to create new account files in
+        """
+        # select accounts where source if file
+        query = Query(db=self.db, table='accounts',
+                      w_cols=['source'], w_conds=['='],
+                      w_vals=["'file'"])
+
+        # get list of dictionaries that are accounts
+        accounts = query.build_select(build_op='dict')
+
+        # make new files
+        for account in accounts:
+            # create dir in destination filepath to house account dirs
+            os.makedirs(destination.joinpath('accounts'), exist_ok=True)
+            # create dir for each account using account number
+            account_fp = destination.joinpath('accounts').joinpath(str(account['num']))
+            os.makedirs(account_fp, exist_ok=True)
+
+            # relocate existing files
+            existing_dir = Dir(Path(account['filepath']))
+            existing_dir.move_all_files(destination=account_fp)
+
+            # update db account filepaths
+            query = Query(db=self.db, table='accounts',
+                          w_cols=['num'], w_conds=['='],
+                          w_vals=[str(account['num'])])
+            query.up_vals = [account_fp.__str__()]
+            query.up_cols = ['filepath']
+            query.build_str()
+            self.db.conn.cursor().execute(query.build_update())
+            self.db.conn.commit()
 
     def td_csv2df(self, new_data, filepath, acc_id):
         """ converts ALL TD type csv files in the account folder to appropriate dataframe for importing to sql and

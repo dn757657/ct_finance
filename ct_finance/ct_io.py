@@ -20,7 +20,7 @@ usage = """
 finance_py CLI.
 
 Usage:
-    ct_io.py add_source_fp      <filepath>
+    ct_io.py add_source_fp      <filepath> <source_type>
     ct_io.py create             ((--a <number> (--TD | --QT | --crypto) (--f | --api) [<description> <adjust>]) | 
                                 ( --t <tag_desc> )... | 
                                 ( --c <cat_desc> )... |
@@ -77,26 +77,44 @@ elim_apostrophes(args=args)
 # print(args)
 
 # add filepath for db storage if desired
-JSON_SOURCE_FILE = 'db_source.json'
+JSON_SOURCE_FILE = 'filepaths.json'
 SOURCE_FP = pathlib.Path(__file__).absolute().parent
+FIPY_FP = pathlib.Path(__file__).absolute().parent
 
 
-def add_source_filepath(filepath):
-    # path = pathlib.Path(filepath).__str__
-    with open(os.path.join(SOURCE_FP, JSON_SOURCE_FILE), 'w') as db_file:
-        full_fp = pathlib.Path(SOURCE_FP).joinpath(JSON_SOURCE_FILE)
-        # if user updates delete original file
-        if os.path.exists(full_fp):
-            os.remove(full_fp)
-        db_file.write(json.dumps(filepath))
+def set_source_filepath(json_path, json_name, filepath, source_type):
+    types = ['db_filepath', 'accounts_filepath']
+    full_fp = pathlib.Path(json_path).joinpath(json_name)
+
+    # if exists load existing info
+    filepaths = dict()
+    if os.path.exists(full_fp):
+        with open(os.path.join(json_path, json_name), 'r') as db_file:
+            filepaths = json.load(db_file)
+
+    if source_type in types:
+        # if accounts filepath is changed so must accounts db entries
+        if source_type == 'accounts_filepath' and filepaths['accounts_filepath']:
+            dbUpdate(db=init_db()).update_account_fps(destination=pathlib.Path(filepath))
+
+        # update filepath as required
+        with open(os.path.join(json_path, json_name), 'w') as db_file:
+            # ensure passed type is going to be recognized
+            if source_type in types:
+                filepaths[source_type] = filepath
+                db_file.write(json.dumps(filepaths))
+    else:
+        print("Incompatible source type!")
 
 
-def get_source_fp():
-    try:
-        with open(os.path.join(SOURCE_FP, JSON_SOURCE_FILE), 'r') as db_file:
-            path = pathlib.Path(json.load(db_file))
-    except:
-        path = None
+def get_source_fp(source_type):
+    # try:
+    path = None
+    with open(os.path.join(SOURCE_FP, JSON_SOURCE_FILE), 'r') as db_file:
+        filepaths = json.load(db_file)
+        path = pathlib.Path(filepaths[source_type])
+    # except:
+    #     path = None
 
     return path
 
@@ -109,7 +127,7 @@ def init_db():
     for table in DISPLAY_TABLES:
         structure.append(table)
 
-    source_path = get_source_fp()
+    source_path = get_source_fp(source_type='db_filepath')
     if source_path:
         db = DB(structure=structure, filepath=source_path)
     else:
@@ -140,7 +158,8 @@ if args['process']:
     BankClassify(db=db).ask_with_guess()
 
 if args['add_source_fp']:
-    add_source_filepath(args['<filepath>'])
+    set_source_filepath(json_path=SOURCE_FP, json_name=JSON_SOURCE_FILE,
+                        filepath=args['<filepath>'], source_type=args['<source_type>'])
 
 if args['edit']:
     db = init_db()
